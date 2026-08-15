@@ -1,0 +1,20 @@
+[
+  {
+    "nombre": "Carlos Ramírez",
+    "documento": "CC 1032456789",
+    "placaGrua": "WGT452",
+    "telefono": "+57 300 1234567"
+  },
+  {
+    "nombre": "Luis Fernández",
+    "documento": "CC 1098765432",
+    "placaGrua": "QRS789",
+    "telefono": "+57 301 2345678"
+  },
+  {
+    "nombre": "Jorge Martínez",
+    "documento": "CC 1076543210",
+    "placaGrua": "TYU123",
+    "telefono": "+57 302 3456789"
+  }
+]
