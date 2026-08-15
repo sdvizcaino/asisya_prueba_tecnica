@@ -1,0 +1,701 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-4789-a012-b3c4d5e6f7a8",
+    "name": "Asisya Sandbox - Sección B2",
+    "description": "Colección de pruebas de API para el sandbox Asisya (Prueba Técnica QA). Cubre autenticación (incluidas 3 pruebas OWASP), creación de solicitudes de asistencia y seguimiento de estado, siguiendo exactamente el contrato de la sección 3 del SDD. Cada request documenta en su descripción qué riesgo de negocio o de seguridad cubre.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Fecha del día en formato YYYY-MM-DD, calculada una vez por request para",
+          "// que todos los payloads de la colección usen una fecha consistente y vigente.",
+          "pm.collectionVariables.set('fechaHoy', new Date().toISOString().slice(0, 10));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "token", "value": "" },
+    { "key": "usuarioId", "value": "" },
+    { "key": "solicitudIdGrua", "value": "" },
+    { "key": "idempotencyKeyPrueba", "value": "" },
+    { "key": "solicitudIdOriginalIdempotencia", "value": "" },
+    { "key": "fechaHoy", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "1. Login exitoso",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario\": \"usuario_test\",\n  \"clave\": \"clave123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "login"]
+            },
+            "description": "Happy path de autenticación. Guarda `token` y `usuarioId` como variables de colección para reutilizarlos en el resto de la corrida, evitando loguear en cada request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login exitoso responde 200 con token', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.usuarioId).to.eql('USR999');",
+                  "  pm.collectionVariables.set('token', body.token);",
+                  "  pm.collectionVariables.set('usuarioId', body.usuarioId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "2. Login inválido",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario\": \"usuario_test\",\n  \"clave\": \"clave_incorrecta\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "login"]
+            },
+            "description": "OWASP A07 (Identification and Authentication Failures): una clave incorrecta debe responder 401 con un mensaje GENÉRICO — exactamente el mismo que un usuario inexistente — para no permitir enumeración de usuarios."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login inválido responde 401 con mensaje genérico', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('AUTENTICACION');",
+                  "  pm.expect(body.mensaje).to.eql('Credenciales inválidas');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "3. Inyección SQL en login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario\": \"' OR '1'='1' --\",\n  \"clave\": \"cualquiera\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "login"]
+            },
+            "description": "OWASP A03 (Injection). El lookup de usuarios hoy es un arreglo en memoria, no SQL real: esta prueba es un TEST DE CONTRATO que fija el comportamiento esperado (401, sin fugas técnicas) para detectar una regresión si el backend migra a una base de datos real."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('La inyección SQL no autentica y no filtra información técnica', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "  const textoCrudo = pm.response.text();",
+                  "  pm.expect(textoCrudo).to.not.match(/sql|sqlite|syntax|stack|at object/i);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "4. Bloqueo por intentos repetidos",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario\": \"usuario_bloqueo_test\",\n  \"clave\": \"clave_incorrecta\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "login"]
+            },
+            "description": "OWASP A07: verifica el bloqueo temporal tras 6 intentos fallidos del MISMO usuario en 60 s. Usa `usuario_bloqueo_test` (dedicado) para no bloquear a `usuario_test` y afectar el resto de la corrida. El pre-request script agota los primeros 5 intentos; esta request configurada es el 6.º y debe responder 429."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Agota 5 intentos fallidos antes de que la request configurada del item",
+                  "// (el 6.º intento) llegue al backend, para provocar el bloqueo temporal.",
+                  "// pm.sendRequest con callback (no await): es el estilo que el sandbox de",
+                  "// Newman soporta para encadenar peticiones asíncronas en un pre-request.",
+                  "function agotarIntento(restantes, callback) {",
+                  "  if (restantes <= 0) { callback(); return; }",
+                  "  pm.sendRequest({",
+                  "    url: pm.variables.get('baseUrl') + '/api/asisya/login',",
+                  "    method: 'POST',",
+                  "    header: { 'Content-Type': 'application/json' },",
+                  "    body: {",
+                  "      mode: 'raw',",
+                  "      raw: JSON.stringify({ usuario: 'usuario_bloqueo_test', clave: 'clave_incorrecta' })",
+                  "    }",
+                  "  }, function () {",
+                  "    agotarIntento(restantes - 1, callback);",
+                  "  });",
+                  "}",
+                  "",
+                  "agotarIntento(5, function () {});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('El 6.º intento fallido responde 429 BLOQUEO_TEMPORAL', function () {",
+                  "  pm.response.to.have.status(429);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('BLOQUEO_TEMPORAL');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Solicitud de asistencia",
+      "item": [
+        {
+          "name": "5. Crear solicitud grúa (happy path)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\",\n  \"tipoAsistencia\": \"grua\",\n  \"ubicacion\": { \"direccion\": \"Cra 51B #80-50, Barranquilla\" },\n  \"placa\": \"ABC123\",\n  \"fecha\": \"{{fechaHoy}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/solicitud-asistencia",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "solicitud-asistencia"]
+            },
+            "description": "Happy path del escenario de negocio (CA-01): crea una solicitud de grúa con datos completos. Valida el schema completo de la respuesta y que el tiempo de respuesta esté bajo el SLA de creación (<2000 ms)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const schema = {",
+                  "  type: 'object',",
+                  "  required: ['solicitudId', 'estado', 'mensaje', 'usuarioId', 'tipoAsistencia', 'direccionRegistrada', 'fechaCreacion', 'duplicada'],",
+                  "  properties: {",
+                  "    solicitudId: { type: 'string', pattern: '^SOL-\\\\d{8}-\\\\d{4}$' },",
+                  "    estado: { type: 'string' },",
+                  "    mensaje: { type: 'string' },",
+                  "    usuarioId: { type: 'string' },",
+                  "    tipoAsistencia: { type: 'string' },",
+                  "    direccionRegistrada: { type: 'string' },",
+                  "    placa: { type: 'string' },",
+                  "    fechaCreacion: { type: 'string' },",
+                  "    duplicada: { type: 'boolean' }",
+                  "  }",
+                  "};",
+                  "",
+                  "pm.test('Solicitud de grúa creada con 201 y schema válido', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('El estado inicial es RECIBIDA', function () {",
+                  "  pm.expect(body.estado).to.eql('RECIBIDA');",
+                  "});",
+                  "pm.test('Responde en menos de 2000 ms (SLA de creación)', function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('solicitudIdGrua', body.solicitudId);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "6. Crear solicitud médico domiciliario (payload textual del PDF)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"USR999\",\n  \"tipoAsistencia\": \"medico_domicilio\",\n  \"direccion\": \"Cra 12 #34-56\",\n  \"fecha\": \"2025-08-02\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/solicitud-asistencia",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "solicitud-asistencia"]
+            },
+            "description": "Payload EXACTO del PDF del enunciado (usuarioId fijo y fecha pasada, sin tocar ni un carácter): confirma que ese payload textual sigue siendo válido contra el contrato vigente."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const schema = {",
+                  "  type: 'object',",
+                  "  required: ['solicitudId', 'estado', 'mensaje', 'usuarioId', 'tipoAsistencia', 'direccionRegistrada', 'fechaCreacion', 'duplicada'],",
+                  "  properties: {",
+                  "    solicitudId: { type: 'string', pattern: '^SOL-\\\\d{8}-\\\\d{4}$' },",
+                  "    estado: { type: 'string' },",
+                  "    mensaje: { type: 'string' },",
+                  "    usuarioId: { type: 'string' },",
+                  "    tipoAsistencia: { type: 'string' },",
+                  "    direccionRegistrada: { type: 'string' },",
+                  "    fechaCreacion: { type: 'string' },",
+                  "    duplicada: { type: 'boolean' }",
+                  "  }",
+                  "};",
+                  "",
+                  "pm.test('Solicitud médico domiciliario creada con 201 y schema válido', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "pm.test('El estado inicial es RECIBIDA', function () {",
+                  "  pm.expect(pm.response.json().estado).to.eql('RECIBIDA');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "7. Campos obligatorios faltantes",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\",\n  \"tipoAsistencia\": \"grua\",\n  \"fecha\": \"{{fechaHoy}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/solicitud-asistencia",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "solicitud-asistencia"]
+            },
+            "description": "CA-02: una solicitud de grúa sin `placa` ni `ubicacion.direccion` debe rechazarse con 400 VALIDACION y listar exactamente los campos omitidos, para que el operador sepa qué falta."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza por campos obligatorios faltantes', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.error).to.eql('VALIDACION');",
+                  "  pm.expect(body.campos).to.include.members(['placa', 'ubicacion.direccion']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "8. Placa inválida",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\",\n  \"tipoAsistencia\": \"grua\",\n  \"ubicacion\": { \"direccion\": \"Cra 1 #2-3\" },\n  \"placa\": \"ABC12\",\n  \"fecha\": \"{{fechaHoy}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/solicitud-asistencia",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "solicitud-asistencia"]
+            },
+            "description": "CA-03: `ABC12` tiene 5 caracteres, formato inválido. Debe responder con el código específico PLACA_INVALIDA, distinguible del error genérico de validación."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza por formato de placa inválido', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().error).to.eql('PLACA_INVALIDA');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "9. tipoAsistencia fuera del catálogo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\",\n  \"tipoAsistencia\": \"teletransporte\",\n  \"fecha\": \"{{fechaHoy}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/solicitud-asistencia",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "solicitud-asistencia"]
+            },
+            "description": "El catálogo de tipoAsistencia es cerrado (grua, medico_domicilio, cerrajeria, plomeria): un valor arbitrario se rechaza con 400 VALIDACION, no se acepta silenciosamente."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza un tipoAsistencia fuera del catálogo', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().error).to.eql('VALIDACION');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "10. Usuario inexistente",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"USR000\",\n  \"tipoAsistencia\": \"medico_domicilio\",\n  \"direccion\": \"Calle Falsa 123\",\n  \"fecha\": \"{{fechaHoy}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/solicitud-asistencia",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "solicitud-asistencia"]
+            },
+            "description": "Con token válido pero un `usuarioId` que no existe en el catálogo, el servidor debe responder 404 USUARIO_NO_ENCONTRADO. Es la última validación en la precedencia de la sección 3.4 (se llega hasta aquí porque el resto del cuerpo es válido)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza un usuarioId inexistente', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.json().error).to.eql('USUARIO_NO_ENCONTRADO');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "11. Sin token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\",\n  \"tipoAsistencia\": \"grua\",\n  \"ubicacion\": { \"direccion\": \"Cra 1 #2-3\" },\n  \"placa\": \"ABC123\",\n  \"fecha\": \"{{fechaHoy}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/solicitud-asistencia",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "solicitud-asistencia"]
+            },
+            "description": "El cuerpo es completamente válido a propósito: la ÚNICA razón de rechazo debe ser la ausencia del header Authorization, primer paso de la precedencia de validaciones (401 AUTENTICACION antes que cualquier otra validación)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza sin token de autorización', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().error).to.eql('AUTENTICACION');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "12. Idempotencia",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Idempotency-Key", "value": "{{idempotencyKeyPrueba}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\",\n  \"tipoAsistencia\": \"medico_domicilio\",\n  \"direccion\": \"Calle Idempotencia 123\",\n  \"fecha\": \"{{fechaHoy}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/solicitud-asistencia",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "solicitud-asistencia"]
+            },
+            "description": "CA-05: dos envíos con la MISMA Idempotency-Key nunca deben crear dos solicitudes. El pre-request script genera la clave y dispara el PRIMER envío; esta request configurada es el SEGUNDO envío con la misma clave, y debe devolver 200 (no 201) con la MISMA solicitudId y `duplicada: true`."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Fija la clave de idempotencia para esta corrida y dispara el primer envío",
+                  "// desde el pre-request script (con callback, no await: ver comentario del",
+                  "// item 4); la request configurada del item es el segundo envío.",
+                  "const idemKey = pm.variables.replaceIn('{{$guid}}');",
+                  "pm.collectionVariables.set('idempotencyKeyPrueba', idemKey);",
+                  "",
+                  "const fecha = new Date().toISOString().slice(0, 10);",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.get('baseUrl') + '/api/asisya/solicitud-asistencia',",
+                  "  method: 'POST',",
+                  "  header: {",
+                  "    'Content-Type': 'application/json',",
+                  "    Authorization: 'Bearer ' + pm.collectionVariables.get('token'),",
+                  "    'Idempotency-Key': idemKey",
+                  "  },",
+                  "  body: {",
+                  "    mode: 'raw',",
+                  "    raw: JSON.stringify({",
+                  "      usuarioId: pm.collectionVariables.get('usuarioId'),",
+                  "      tipoAsistencia: 'medico_domicilio',",
+                  "      direccion: 'Calle Idempotencia 123',",
+                  "      fecha: fecha",
+                  "    })",
+                  "  }",
+                  "}, function (error, respuesta) {",
+                  "  if (!error && respuesta) {",
+                  "    const cuerpoRespuesta = respuesta.json();",
+                  "    pm.collectionVariables.set('solicitudIdOriginalIdempotencia', cuerpoRespuesta.solicitudId);",
+                  "  }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('El reenvío con la misma Idempotency-Key no duplica la solicitud', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.duplicada).to.eql(true);",
+                  "  pm.expect(body.solicitudId).to.eql(pm.collectionVariables.get('solicitudIdOriginalIdempotencia'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Seguimiento",
+      "item": [
+        {
+          "name": "13. Seguimiento de la solicitud creada",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/seguimiento?solicitudId={{solicitudIdGrua}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "seguimiento"],
+              "query": [{ "key": "solicitudId", "value": "{{solicitudIdGrua}}" }]
+            },
+            "description": "Consulta el estado de la solicitud de grúa creada en el request 5 (CA-04). Valida el schema de la respuesta, que `estado` esté dentro del enum válido y que el tiempo de respuesta esté bajo el SLA de consulta (<1500 ms)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const schema = {",
+                  "  type: 'object',",
+                  "  required: ['solicitudId', 'estado', 'actualizadoEn', 'direccionRegistrada', 'historial', 'profesionalAsignado'],",
+                  "  properties: {",
+                  "    solicitudId: { type: 'string' },",
+                  "    estado: { type: 'string' },",
+                  "    actualizadoEn: { type: 'string' },",
+                  "    direccionRegistrada: { type: 'string' },",
+                  "    historial: { type: 'array' }",
+                  "  }",
+                  "};",
+                  "",
+                  "pm.test('Seguimiento responde 200 con schema válido', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.response.to.have.jsonSchema(schema);",
+                  "});",
+                  "",
+                  "pm.test('El estado está dentro del enum válido', function () {",
+                  "  pm.expect(['RECIBIDA', 'ASIGNADA', 'EN_CAMINO', 'FINALIZADA']).to.include(pm.response.json().estado);",
+                  "});",
+                  "pm.test('Responde en menos de 1500 ms (SLA de consulta)', function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(1500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "14. Seguimiento sin solicitudId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/seguimiento",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "seguimiento"]
+            },
+            "description": "Sin el parámetro obligatorio `solicitudId`, el servidor debe responder 400 VALIDACION en vez de un 500 o un resultado ambiguo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza sin solicitudId', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().error).to.eql('VALIDACION');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "15. Seguimiento inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/asisya/seguimiento?solicitudId=SOL-19700101-9999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "asisya", "seguimiento"],
+              "query": [{ "key": "solicitudId", "value": "SOL-19700101-9999" }]
+            },
+            "description": "Un `solicitudId` bien formado pero que nunca fue creado debe responder 404 SOLICITUD_NO_ENCONTRADA."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechaza un solicitudId inexistente', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "  pm.expect(pm.response.json().error).to.eql('SOLICITUD_NO_ENCONTRADA');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}
