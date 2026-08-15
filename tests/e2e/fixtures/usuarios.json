@@ -1,0 +1,35 @@
+{
+  "usuarios": {
+    "valido": {
+      "usuario": "usuario_test",
+      "clave": "clave123",
+      "usuarioId": "USR999",
+      "nombre": "Sebastián V."
+    },
+    "claveIncorrecta": {
+      "usuario": "usuario_test",
+      "clave": "clave_incorrecta"
+    },
+    "inexistente": {
+      "usuario": "usuario_no_existe",
+      "clave": "cualquiera"
+    },
+    "bloqueoDedicado": {
+      "usuario": "usuario_bloqueo_test",
+      "clave": "cualquiera"
+    }
+  },
+  "placas": {
+    "validas": ["ABC123", "ABC12D"],
+    "invalidas": ["ABC12", "ABC1234", "ABC-123", "12ABC3", "ABC12🚗"],
+    "soloEspacios": "      "
+  },
+  "direcciones": {
+    "grua": "Cra 51B #80-50, Barranquilla",
+    "medicoDomicilio": "Cra 12 #34-56"
+  },
+  "payloadsXss": [
+    "<script>alert(1)</script>",
+    "<img src=x onerror=alert(1)>"
+  ]
+}
