@@ -12,30 +12,34 @@
 
     <button id="btnSolicitarAsistencia" data-testid="btn-solicitar-asistencia" type="button">Solicitar Asistencia</button>
 
-    <section id="seccionOpciones" hidden>
-      <h2>Tipo de asistencia</h2>
-      <button type="button" data-testid="opcion-grua" data-tipo="grua">Asistencia de grúa</button>
-      <button type="button" data-testid="opcion-medico-domicilio" data-tipo="medico_domicilio">Asistencia médica a domicilio</button>
+    <!-- Opciones de tipo y formulario se revelan juntos: el botón Confirmar debe
+         poder pulsarse incluso sin haber elegido un tipo (CA-02, variante D). -->
+    <section id="seccionFormulario" hidden>
+      <section id="seccionOpciones">
+        <h2>Tipo de asistencia</h2>
+        <button type="button" data-testid="opcion-grua" data-tipo="grua">Asistencia de grúa</button>
+        <button type="button" data-testid="opcion-medico-domicilio" data-tipo="medico_domicilio">Asistencia médica a domicilio</button>
+      </section>
+
+      <form id="formSolicitud" novalidate>
+        <div class="campo campo-medico" hidden>
+          <label for="direccion">Dirección</label>
+          <input type="text" id="direccion" name="direccion" data-testid="input-direccion" />
+        </div>
+
+        <div class="campo campo-grua" hidden>
+          <label for="ubicacion">Ubicación</label>
+          <input type="text" id="ubicacion" name="ubicacion" data-testid="input-ubicacion" />
+        </div>
+        <div class="campo campo-grua" hidden>
+          <label for="placa">Placa del vehículo</label>
+          <input type="text" id="placa" name="placa" data-testid="input-placa" />
+        </div>
+
+        <button id="btnConfirmar" data-testid="btn-confirmar" type="button">Confirmar</button>
+        <p class="mensaje-error" data-testid="mensaje-error" role="alert"></p>
+      </form>
     </section>
-
-    <form id="formSolicitud" hidden novalidate>
-      <div class="campo campo-medico" hidden>
-        <label for="direccion">Dirección</label>
-        <input type="text" id="direccion" name="direccion" data-testid="input-direccion" />
-      </div>
-
-      <div class="campo campo-grua" hidden>
-        <label for="ubicacion">Ubicación</label>
-        <input type="text" id="ubicacion" name="ubicacion" data-testid="input-ubicacion" />
-      </div>
-      <div class="campo campo-grua" hidden>
-        <label for="placa">Placa del vehículo</label>
-        <input type="text" id="placa" name="placa" data-testid="input-placa" />
-      </div>
-
-      <button id="btnConfirmar" data-testid="btn-confirmar" type="button">Confirmar</button>
-      <p class="mensaje-error" data-testid="mensaje-error" role="alert"></p>
-    </form>
 
     <section id="resultado" hidden>
       <p class="resultado-confirmacion" data-testid="resultado-confirmacion"></p>

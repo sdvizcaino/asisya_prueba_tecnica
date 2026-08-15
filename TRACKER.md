@@ -7,12 +7,12 @@
 
 | Campo | Valor |
 |---|---|
-| Última etapa completada | Etapa 3 — Config de Playwright, fixtures y POM |
-| Etapa en curso | Etapa 4 — Sección B1: specs de frontend |
+| Última etapa completada | Etapa 4 — Sección B1: specs de frontend |
+| Etapa en curso | Etapa 5 — Sección B2: API con Postman/Newman |
 | Fecha de actualización | 2026-08-15 |
 | Último push a `main` | sí |
-| ¿Qué corre hoy? | `npm start` + `npm run verify:sandbox` (igual que Etapa 2); Chromium instalado (`npx playwright install chromium`); `playwright.config.ts` con los 3 projects, fixtures (`api`, `paginaAutenticada`, `solicitudGrua`, `paginaSeguimiento`) y POM (`LoginPage`, `MiAsistenciaPage`) verificados funcionando en tiempo real contra el sandbox (login por API, login por UI, creación de solicitud + cálculo de profesional esperado, seguimiento vía query param) |
-| ¿Qué NO corre todavía? | No existen specs `.spec.ts` — se crean en la Etapa 4 (B1) y la Etapa 6 (Sección C) — por eso `npx playwright test --list` reporta "No tests found" en este momento; eso es esperado, no un fallo. Tampoco existen colección de Postman ni script de k6 |
+| ¿Qué corre hoy? | `npm run test:e2e` → 40/40 tests verdes en `chromium-desktop` y `mobile-chrome` (20 specs × 2 projects), con los 4 puntos de la Sección B1 cubiertos 1:1, videos en `test-results/` y reporte en `playwright-report/` |
+| ¿Qué NO corre todavía? | No existen colección de Postman/Newman (Sección B2), specs de la Sección C, script de k6 (Sección D) ni documentación |
 
 ## 2. Cómo retomar el contexto  _(se sobrescribe)_
 
@@ -34,7 +34,8 @@ npm run verify:sandbox
 | 0 — Inicialización | 2026-08-15 | 08a5ead | `npm install` + remoto configurado | OK |
 | 1 — Sandbox API | 2026-08-15 | 943632f | `curl` a `/health`, login, creación 201, placa inválida 400, sin token 401 (bloque exacto del SDD) | OK |
 | 2 — Sandbox frontend + smoke | 2026-08-15 | e1a0fc3 | `npm run verify:sandbox` código 0, imprime RECIBIDA → ASIGNADA → EN_CAMINO → FINALIZADA | OK |
-| 3 — Config Playwright, fixtures, POM | 2026-08-15 | pendiente | `npx playwright test --list` (0 specs reales aún; ver D-10) + verificación temporal de los 3 projects y las 4 fixtures contra el sandbox real, borrada tras confirmar | OK (con salvedad documentada en D-10) |
+| 3 — Config Playwright, fixtures, POM | 2026-08-15 | 0959f1e | `npx playwright test --list` (0 specs reales aún; ver D-10) + verificación temporal de los 3 projects y las 4 fixtures contra el sandbox real, borrada tras confirmar | OK (con salvedad documentada en D-10) |
+| 4 — Sección B1: specs de frontend | 2026-08-15 | pendiente | `npm run test:e2e` → 40/40 verdes (20 specs × 2 projects), videos en `test-results/`, reporte en `playwright-report/`. Reconfirmado además el criterio de la Etapa 3 con specs reales: `--list` muestra los 40 tests correctamente separados en `chromium-desktop`/`mobile-chrome`, ninguno en `seccion-c-falla` | OK |
 
 ## 4. Decisiones técnicas  _(append-only)_
 
@@ -51,12 +52,14 @@ npm run verify:sandbox
 | D-09 | La clave de idempotencia (`crypto.randomUUID()`) se genera una vez al elegir el tipo de asistencia y se reutiliza en reintentos del mismo envío, no en cada clic de Confirmar | CA-05 exige que un reintento tras fallo de red reutilice la MISMA clave; regenerarla en cada clic rompería la no-duplicación | Generar una clave nueva en cada clic de Confirmar: habría creado una solicitud duplicada en cada reintento | 2 |
 | D-10 | El criterio literal de la Etapa 3 (`npx playwright test --list` "muestra los specs esperados") se valida con archivos `.spec.ts` temporales creados y borrados en la misma sesión, no con specs permanentes | Los specs reales de B1 y Sección C se crean recién en las Etapas 4 y 6; a esta altura `testDir` está vacío y `--list` reporta honestamente "No tests found". La verificación temporal sí confirmó que los 3 projects, `testIgnore`/`testMatch` y las 4 fixtures funcionan contra el sandbox real | Dejar specs placeholder permanentes solo para "pasar" el criterio: habría sido deuda falsa y contenido fuera del alcance real de cada etapa | 3 |
 | D-11 | `paginaSeguimiento` hace login por API dentro de la fixture (no recibe el token como parámetro) e inyecta el token vía `page.addInitScript` antes de navegar | Mantiene la fixture autocontenida: los specs 02/03 solo necesitan pasarle el `solicitudId` de `solicitudGrua`, sin tener que orquestar credenciales por su cuenta | Pedir el token como argumento de la función: habría acoplado cada spec a repetir el login por API antes de llamar a la fixture | 3 |
+| D-12 | El frontend se reestructuró en la Etapa 4: opciones de tipo y formulario (con el botón Confirmar) se revelan juntos al pulsar "Solicitar Asistencia", en vez de que el formulario aparezca solo después de elegir un tipo | CA-02 variante D exige poder "intentar confirmar sin elegir un tipo"; con el diseño original de la Etapa 2 el botón Confirmar estaba oculto hasta seleccionar un tipo, haciendo esa variante imposible de ejercer por UI | Mantener el diseño original y saltarse la variante D en el E2E: habría dejado sin probar una validación que el propio CA-02 exige | 4 |
+| D-13 | La verificación de la Sección D en `04-seguridad-xss.spec.ts` cuenta `document.querySelectorAll('script')` antes/después del envío, en vez del literal `script[data-inyectado]` que menciona el SDD | Ningún payload de `usuarios.json` fija el atributo `data-inyectado`; comprobar ese selector siempre daría vacío sin probar nada. Contar los `<script>` totales sí detecta una inyección real | Implementar el selector literal: habría sido una aserción que pasa siempre, sin valor de detección | 4 |
 
 ## 5. Siguientes pasos  _(se sobrescribe)_
 
-1. **Inmediato:** implementar la Etapa 4 — specs de la Sección B1 (`tests/e2e/01-mi-asistencia.spec.ts` a `04-seguridad-xss.spec.ts`), usando las fixtures y POM ya creados en la Etapa 3.
-2. Después: Etapa 5 — colección Postman/Newman de la Sección B2.
-3. Después: Etapa 6 — Sección C (debug del test defectuoso).
+1. **Inmediato:** implementar la Etapa 5 — colección Postman/Newman de la Sección B2 (`tests/api/Asisya.postman_collection.json` + `Asisya.postman_environment.json`), 15 requests con `pm.response.to.have.jsonSchema` en 5, 6 y 13.
+2. Después: Etapa 6 — Sección C (debug del test defectuoso: falla, adaptado y corregido).
+3. Después: Etapa 7 — Sección D (carga con k6, normal vs degradado).
 
 ## 6. Deuda y riesgos conocidos  _(append-only)_
 

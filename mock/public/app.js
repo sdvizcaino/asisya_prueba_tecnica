@@ -66,7 +66,7 @@
     }
 
     const btnSolicitar = document.querySelector('[data-testid="btn-solicitar-asistencia"]');
-    const seccionOpciones = document.getElementById('seccionOpciones');
+    const seccionFormulario = document.getElementById('seccionFormulario');
     const formSolicitud = document.getElementById('formSolicitud');
     const btnConfirmar = document.getElementById('btnConfirmar');
     const mensajeError = document.querySelector('[data-testid="mensaje-error"]');
@@ -101,8 +101,11 @@
     }
 
     btnSolicitar.addEventListener('click', () => {
+      // Las opciones de tipo y el formulario (con el botón Confirmar) se revelan
+      // juntos: el usuario puede pulsar Confirmar sin haber elegido un tipo
+      // (CA-02, variante D), y el servidor responde con el error de validación.
       btnSolicitar.hidden = true;
-      seccionOpciones.hidden = false;
+      seccionFormulario.hidden = false;
     });
 
     document.querySelectorAll('#seccionOpciones button[data-tipo]').forEach((boton) => {
@@ -116,14 +119,16 @@
         camposMedico.forEach((el) => (el.hidden = tipoSeleccionado !== 'medico_domicilio'));
         camposGrua.forEach((el) => (el.hidden = tipoSeleccionado !== 'grua'));
 
-        seccionOpciones.hidden = true;
-        formSolicitud.hidden = false;
         mensajeError.textContent = '';
       });
     });
 
     btnConfirmar.addEventListener('click', async () => {
       if (peticionEnVuelo) return;
+
+      // Si el usuario nunca eligió un tipo (CA-02, variante D), se genera la
+      // clave aquí para no enviar una cabecera Idempotency-Key vacía.
+      if (!idempotencyKey) idempotencyKey = crypto.randomUUID();
 
       const cuerpo = {
         usuarioId,
