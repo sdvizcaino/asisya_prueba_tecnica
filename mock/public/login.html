@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Asisya — Ingreso</title>
+  <link rel="stylesheet" href="estilos.css" />
+</head>
+<body>
+  <main class="contenedor-login" data-testid="modulo-login">
+    <h1>Asisya</h1>
+    <form id="formLogin" novalidate>
+      <div class="campo">
+        <label for="usuario">Usuario</label>
+        <input type="text" id="usuario" name="usuario" data-testid="input-usuario" autocomplete="username" required />
+      </div>
+      <div class="campo">
+        <label for="clave">Contraseña</label>
+        <input type="password" id="clave" name="clave" data-testid="input-clave" autocomplete="current-password" required />
+      </div>
+      <button type="submit" data-testid="btn-ingresar">Ingresar</button>
+      <p class="mensaje-error" data-testid="error-login" role="alert"></p>
+    </form>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

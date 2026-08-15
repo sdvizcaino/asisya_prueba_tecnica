@@ -7,12 +7,12 @@
 
 | Campo | Valor |
 |---|---|
-| Última etapa completada | Etapa 1 — Sandbox API |
-| Etapa en curso | Etapa 2 — Sandbox frontend + smoke |
+| Última etapa completada | Etapa 2 — Sandbox frontend + smoke |
+| Etapa en curso | Etapa 3 — Config de Playwright, fixtures y POM |
 | Fecha de actualización | 2026-08-15 |
 | Último push a `main` | sí |
-| ¿Qué corre hoy? | `npm start` levanta el sandbox completo: `/health`, login con bloqueo por intentos, `/solicitud-asistencia` con las 5 precedencias de validación e idempotencia, `/seguimiento` con progresión de estados y asignación determinista de profesional |
-| ¿Qué NO corre todavía? | No hay frontend (`mock/public/` vacío) ni `mock/verificar-sandbox.js`; `npm run verify:sandbox` fallaría. Tampoco existen tests de Playwright, colección de Postman ni script de k6 |
+| ¿Qué corre hoy? | `npm start` levanta el sandbox completo (API + frontend en `mock/public/`); `npm run verify:sandbox` pasa con código 0 e imprime la secuencia RECIBIDA → ASIGNADA → EN_CAMINO → FINALIZADA; flujo de login + solicitud de grúa + seguimiento verificado manualmente en el navegador (incluida la defensa XSS vía `textContent`) |
+| ¿Qué NO corre todavía? | No existen tests de Playwright (`playwright.config.ts`, fixtures, POM), colección de Postman ni script de k6 |
 
 ## 2. Cómo retomar el contexto  _(se sobrescribe)_
 
@@ -32,7 +32,8 @@ npm run verify:sandbox
 | Etapa | Fecha | Commit | Criterio de aceptación | Resultado |
 |---|---|---|---|---|
 | 0 — Inicialización | 2026-08-15 | 08a5ead | `npm install` + remoto configurado | OK |
-| 1 — Sandbox API | 2026-08-15 | pendiente | `curl` a `/health`, login, creación 201, placa inválida 400, sin token 401 (bloque exacto del SDD) | OK |
+| 1 — Sandbox API | 2026-08-15 | 943632f | `curl` a `/health`, login, creación 201, placa inválida 400, sin token 401 (bloque exacto del SDD) | OK |
+| 2 — Sandbox frontend + smoke | 2026-08-15 | pendiente | `npm run verify:sandbox` código 0, imprime RECIBIDA → ASIGNADA → EN_CAMINO → FINALIZADA | OK |
 
 ## 4. Decisiones técnicas  _(append-only)_
 
@@ -45,12 +46,14 @@ npm run verify:sandbox
 | D-05 | La API devuelve `direccionRegistrada` sin sanitizar | La defensa contra XSS vive en el renderizado (`textContent`); sin un campo que refleje el input del usuario, la prueba de XSS no tiene nada que verificar | Sanitizar en el backend: habría hecho la prueba de frontend trivialmente verde y sin valor | 1 |
 | D-06 | ETA del profesional inicia en 15 min en `ASIGNADA` y decrece linealmente durante `EN_CAMINO` hasta 1, llegando a 0 en `FINALIZADA` | El SDD exige "entero positivo" en ambos tramos y "decreciente" en `EN_CAMINO"; no fija el valor inicial exacto, así que se eligió uno realista y determinista en función del tiempo transcurrido, sin aleatoriedad | Un ETA aleatorio: habría roto la posibilidad de que el fixture de Playwright prediga el valor sin sondear | 1 |
 | D-07 | El consecutivo de `solicitudId` (`SOL-AAAAMMDD-NNNN`) se lleva por día en un `Map` en memoria | Cumple el formato exacto del contrato sin necesitar base de datos; se reinicia con el proceso, coherente con la regla de store en memoria | UUID como identificador: no habría cumplido el formato `SOL-AAAAMMDD-NNNN` exigido por el contrato | 1 |
+| D-08 | `express.static` sirve `login.html` como índice de `/` | Usabilidad manual del sandbox (abrir `localhost:3000` lleva directo al login); no está en el contrato de la sección 3, es solo servir estáticos | Sin índice: `/` devolvería 404 y habría que teclear `/login.html` a mano | 2 |
+| D-09 | La clave de idempotencia (`crypto.randomUUID()`) se genera una vez al elegir el tipo de asistencia y se reutiliza en reintentos del mismo envío, no en cada clic de Confirmar | CA-05 exige que un reintento tras fallo de red reutilice la MISMA clave; regenerarla en cada clic rompería la no-duplicación | Generar una clave nueva en cada clic de Confirmar: habría creado una solicitud duplicada en cada reintento | 2 |
 
 ## 5. Siguientes pasos  _(se sobrescribe)_
 
-1. **Inmediato:** implementar la Etapa 2 — frontend del sandbox (`mock/public/login.html`, `mi-asistencia.html`, `app.js`, `estilos.css`) con los ganchos exactos que exige el test defectuoso de la sección 3.7, y `mock/verificar-sandbox.js`.
-2. Después: Etapa 3 — configuración de Playwright, fixtures y page objects.
-3. Después: Etapa 4 — specs de la Sección B1 (frontend).
+1. **Inmediato:** implementar la Etapa 3 — `playwright.config.ts` (3 projects: chromium-desktop, mobile-chrome, seccion-c-falla), `tests/e2e/fixtures/usuarios.json` y `asisya.fixture.ts` (helpers `api`, `paginaAutenticada`, `solicitudGrua`, `paginaSeguimiento`), y el POM mínimo (`LoginPage`, `MiAsistenciaPage`).
+2. Después: Etapa 4 — specs de la Sección B1 (frontend): 01 a 04.
+3. Después: Etapa 5 — colección Postman/Newman de la Sección B2.
 
 ## 6. Deuda y riesgos conocidos  _(append-only)_
 

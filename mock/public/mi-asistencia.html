@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mi Asistencia — Asisya</title>
+  <link rel="stylesheet" href="estilos.css" />
+</head>
+<body>
+  <main data-testid="modulo-mi-asistencia">
+    <h1>Mi Asistencia</h1>
+
+    <button id="btnSolicitarAsistencia" data-testid="btn-solicitar-asistencia" type="button">Solicitar Asistencia</button>
+
+    <section id="seccionOpciones" hidden>
+      <h2>Tipo de asistencia</h2>
+      <button type="button" data-testid="opcion-grua" data-tipo="grua">Asistencia de grúa</button>
+      <button type="button" data-testid="opcion-medico-domicilio" data-tipo="medico_domicilio">Asistencia médica a domicilio</button>
+    </section>
+
+    <form id="formSolicitud" hidden novalidate>
+      <div class="campo campo-medico" hidden>
+        <label for="direccion">Dirección</label>
+        <input type="text" id="direccion" name="direccion" data-testid="input-direccion" />
+      </div>
+
+      <div class="campo campo-grua" hidden>
+        <label for="ubicacion">Ubicación</label>
+        <input type="text" id="ubicacion" name="ubicacion" data-testid="input-ubicacion" />
+      </div>
+      <div class="campo campo-grua" hidden>
+        <label for="placa">Placa del vehículo</label>
+        <input type="text" id="placa" name="placa" data-testid="input-placa" />
+      </div>
+
+      <button id="btnConfirmar" data-testid="btn-confirmar" type="button">Confirmar</button>
+      <p class="mensaje-error" data-testid="mensaje-error" role="alert"></p>
+    </form>
+
+    <section id="resultado" hidden>
+      <p class="resultado-confirmacion" data-testid="resultado-confirmacion"></p>
+      <p>Dirección registrada: <span data-testid="eco-direccion"></span></p>
+    </section>
+
+    <section id="seguimiento" hidden>
+      <h2>Estado de tu solicitud</h2>
+      <p>Estado: <span data-testid="estado-solicitud"></span></p>
+
+      <div data-testid="card-profesional" hidden>
+        <h3>Profesional asignado</h3>
+        <p>Nombre: <span data-testid="profesional-nombre"></span></p>
+        <p>Documento: <span data-testid="profesional-documento"></span></p>
+        <p>Placa de la grúa: <span data-testid="profesional-placa"></span></p>
+        <p>Tiempo estimado de llegada: <span data-testid="profesional-eta"></span> min</p>
+      </div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

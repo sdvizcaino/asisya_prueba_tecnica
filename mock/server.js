@@ -323,7 +323,8 @@ app.get('/api/asisya/seguimiento', async (req, res) => {
 });
 
 // --- Estático: frontend del sandbox (Etapa 2) ------------------------------------
-app.use(express.static(path.join(__dirname, 'public')));
+// index: 'login.html' hace que la raíz sirva la pantalla de ingreso directamente.
+app.use(express.static(path.join(__dirname, 'public'), { index: 'login.html' }));
 
 // --- Manejador de errores global -----------------------------------------------
 // Nunca se filtra el stack trace, el nombre del motor de base de datos ni la
