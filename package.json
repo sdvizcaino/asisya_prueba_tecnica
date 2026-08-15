@@ -1,0 +1,33 @@
+{
+  "name": "asisya_prueba_tecnica",
+  "version": "1.0.0",
+  "description": "Prueba Técnica QA Asisya — sandbox, automatización E2E, API, performance y documentación",
+  "private": true,
+  "scripts": {
+    "start": "node mock/server.js",
+    "start:degradado": "MODE=degradado node mock/server.js",
+    "verify:sandbox": "start-server-and-test start http://localhost:3000/health verify:sandbox:run",
+    "verify:sandbox:run": "node mock/verificar-sandbox.js",
+    "test:e2e": "playwright test --project=chromium-desktop --project=mobile-chrome",
+    "test:evidencia-falla": "playwright test --project=seccion-c-falla",
+    "test:evidencia-flaky": "playwright test --project=seccion-c-falla --repeat-each=5",
+    "test:api": "start-server-and-test start http://localhost:3000/health test:api:run",
+    "test:api:run": "newman run tests/api/Asisya.postman_collection.json -e tests/api/Asisya.postman_environment.json -r cli,htmlextra --reporter-htmlextra-export tests/api/reports/newman-report.html",
+    "test:perf": "start-server-and-test start http://localhost:3000/health test:perf:run",
+    "test:perf:degradado": "start-server-and-test start:degradado http://localhost:3000/health test:perf:run:degradado",
+    "test:perf:run": "k6 run perf/seguimiento-sla.js; node perf/reporte.js",
+    "test:perf:run:degradado": "k6 run -e MODO=degradado perf/seguimiento-sla.js; node perf/reporte.js",
+    "test:perf:docker": "docker run --rm -i --network host -v \"$PWD\":/work -w /work grafana/k6 run perf/seguimiento-sla.js; node perf/reporte.js",
+    "test:all": "npm run test:e2e && npm run test:api && npm run test:perf"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0",
+    "newman": "^6.2.1",
+    "newman-reporter-htmlextra": "^1.23.1",
+    "start-server-and-test": "^2.0.8"
+  }
+}
