@@ -7,12 +7,12 @@
 
 | Campo | Valor |
 |---|---|
-| Última etapa completada | Etapa 8 — Documentación |
-| Etapa en curso | Etapa 9 — README + CI |
+| Última etapa completada | Etapa 9 — README + CI |
+| Etapa en curso | Etapa 10 — Verificación final |
 | Fecha de actualización | 2026-08-15 |
 | Último push a `main` | sí |
-| ¿Qué corre hoy? | Los 5 documentos de `docs/` existen: `seccion-a-casos-prueba.md` (copia verbatim, verificada byte a byte con `diff`), `seccion-c-debug.md`, `seccion-d-estrategia.md`, `estrategia-pruebas.md` (Mermaid validado con `mermaid-cli`, renderiza sin errores), `guion-videos.md`. Todas las rutas de trazabilidad citadas existen. Todo lo de las Etapas 1-7 sigue verde |
-| ¿Qué NO corre todavía? | No existe `README.md` ni `.github/workflows/ci.yml` (Etapa 9) |
+| ¿Qué corre hoy? | `README.md` completo en el orden exigido (nota de transparencia arriba, requisitos, cómo correr cada suite, índice de entregables, tabla de casos, decisiones, Drive pendiente). `.github/workflows/ci.yml` con sintaxis YAML validada (`ruby -ryaml`, 12 steps parseados correctamente). Todo lo de las Etapas 1-8 sigue verde |
+| ¿Qué NO corre todavía? | El workflow de CI aún no se verificó en verde en GitHub (se confirma tras el push de esta etapa, ver sección 3 de este documento) |
 
 ## 2. Cómo retomar el contexto  _(se sobrescribe)_
 
@@ -39,7 +39,8 @@ npm run verify:sandbox
 | 5 — Sección B2: Postman/Newman | 2026-08-15 | d8d10a9 | `npm run test:api` → 15/15 requests, 0 fallos, 20/20 assertions; `tests/api/reports/newman-report.html` generado | OK |
 | 6 — Sección C: debug del test defectuoso | 2026-08-15 | 08c717e | `npm run test:evidencia-falla` falla (2/2, evidencia); `npm run test:evidencia-flaky` reporta 10/10 fallos en 5 repeticiones; `npm run test:e2e` → 42/42 verdes incluido el corregido. Capturas en `docs/evidencia/` | OK |
 | 7 — Sección D: carga con k6 | 2026-08-15 | e3e650d | `npm run test:perf` exit 0 (normal PASA, avg 45ms); `npm run test:perf:degradado` exit 1 (degradado FALLA, avg 1828ms); `perf/reports/reporte-sla.md` con las dos filas | OK |
-| 8 — Documentación | 2026-08-15 | pendiente | Los 5 documentos existen; Sección A verificada idéntica con `diff` contra `_entrada/`; Mermaid de `estrategia-pruebas.md` validado con `@mermaid-js/mermaid-cli` (renderiza sin errores); todas las rutas de trazabilidad citadas existen en el repo | OK |
+| 8 — Documentación | 2026-08-15 | d77a3f7 | Los 5 documentos existen; Sección A verificada idéntica con `diff` contra `_entrada/`; Mermaid de `estrategia-pruebas.md` validado con `@mermaid-js/mermaid-cli` (renderiza sin errores); todas las rutas de trazabilidad citadas existen en el repo | OK |
+| 9 — README + CI | 2026-08-15 | pendiente | `README.md` en el orden exigido por el SDD; `ci.yml` con YAML válido (12 steps); pendiente confirmar el run en verde en GitHub tras el push (ver nota abajo) | Ver nota |
 
 ## 4. Decisiones técnicas  _(append-only)_
 
