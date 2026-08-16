@@ -7,12 +7,12 @@
 
 | Campo | Valor |
 |---|---|
-| Última etapa completada | Etapa 6 — Sección C: debug del test defectuoso |
-| Etapa en curso | Etapa 7 — Sección D: carga con k6 |
+| Última etapa completada | Etapa 7 — Sección D: carga con k6 |
+| Etapa en curso | Etapa 8 — Documentación |
 | Fecha de actualización | 2026-08-15 |
 | Último push a `main` | sí |
-| ¿Qué corre hoy? | `npm run test:e2e` → 42/42 verdes (40 de B1 + el test corregido de Sección C en ambos projects); `npm run test:evidencia-falla` falla a propósito (2/2, evidencia); `npm run test:evidencia-flaky` reporta 10/10 fallos (5 repeticiones × 2 archivos); `npm run test:api` sigue en 15/15 |
-| ¿Qué NO corre todavía? | No existe script de k6 (Sección D) ni documentación (`docs/seccion-a`, `seccion-c-debug.md`, `seccion-d-estrategia.md`, etc.) |
+| ¿Qué corre hoy? | k6 v2.2.0 instalado (`brew install k6`); `npm run test:perf` → exit 0, `avg=45ms` (PASA); `npm run test:perf:degradado` → exit 1, `avg=1828ms` (FALLA, evidencia esperada); `perf/reports/reporte-sla.md` con la tabla comparativa; todo lo de las Etapas 1-6 sigue verde |
+| ¿Qué NO corre todavía? | No existe documentación (`docs/seccion-a-casos-prueba.md`, `seccion-c-debug.md`, `seccion-d-estrategia.md`, `estrategia-pruebas.md`, `guion-videos.md`), README ni CI |
 
 ## 2. Cómo retomar el contexto  _(se sobrescribe)_
 
@@ -37,7 +37,8 @@ npm run verify:sandbox
 | 3 — Config Playwright, fixtures, POM | 2026-08-15 | 0959f1e | `npx playwright test --list` (0 specs reales aún; ver D-10) + verificación temporal de los 3 projects y las 4 fixtures contra el sandbox real, borrada tras confirmar | OK (con salvedad documentada en D-10) |
 | 4 — Sección B1: specs de frontend | 2026-08-15 | 0191b1f | `npm run test:e2e` → 40/40 verdes (20 specs × 2 projects), videos en `test-results/`, reporte en `playwright-report/`. Reconfirmado además el criterio de la Etapa 3 con specs reales: `--list` muestra los 40 tests correctamente separados en `chromium-desktop`/`mobile-chrome`, ninguno en `seccion-c-falla` | OK |
 | 5 — Sección B2: Postman/Newman | 2026-08-15 | d8d10a9 | `npm run test:api` → 15/15 requests, 0 fallos, 20/20 assertions; `tests/api/reports/newman-report.html` generado | OK |
-| 6 — Sección C: debug del test defectuoso | 2026-08-15 | pendiente | `npm run test:evidencia-falla` falla (2/2, evidencia); `npm run test:evidencia-flaky` reporta 10/10 fallos en 5 repeticiones; `npm run test:e2e` → 42/42 verdes incluido el corregido. Capturas en `docs/evidencia/` | OK |
+| 6 — Sección C: debug del test defectuoso | 2026-08-15 | 08c717e | `npm run test:evidencia-falla` falla (2/2, evidencia); `npm run test:evidencia-flaky` reporta 10/10 fallos en 5 repeticiones; `npm run test:e2e` → 42/42 verdes incluido el corregido. Capturas en `docs/evidencia/` | OK |
+| 7 — Sección D: carga con k6 | 2026-08-15 | pendiente | `npm run test:perf` exit 0 (normal PASA, avg 45ms); `npm run test:perf:degradado` exit 1 (degradado FALLA, avg 1828ms); `perf/reports/reporte-sla.md` con las dos filas | OK |
 
 ## 4. Decisiones técnicas  _(append-only)_
 
@@ -60,12 +61,15 @@ npm run verify:sandbox
 | D-15 | Dentro de esos mismos pre-request scripts se usa `pm.variables.get('baseUrl')`, no `pm.collectionVariables.get('baseUrl')` | `baseUrl` vive en el archivo de **environment**, no como variable de colección; `pm.collectionVariables` solo resuelve ese scope y devolvía `undefined`, produciendo `getaddrinfo ENOTFOUND undefined`. `pm.variables.get` resuelve en cascada por todos los scopes | `pm.collectionVariables.get('baseUrl')`: fallaba en tiempo de ejecución porque el valor real está en el environment | 5 |
 | D-16 | Las capturas de `docs/evidencia/` (falla y corregido) se generan en la Etapa 6, aunque `docs/seccion-c-debug.md` que las va a referenciar se escribe recién en la Etapa 8 | El árbol de la sección 2 ata esas dos imágenes a sus propios test runs, que ocurren aquí; el documento narrativo completo de hallazgos es un entregable explícito de la Etapa 8. Escribir el `.md` a medias ahora habría adelantado trabajo fuera de esta etapa | Escribir ya `seccion-c-debug.md` completo: habría roto "una etapa a la vez" | 6 |
 | D-17 | `test-asistencia-falla-adaptado.spec.ts` usa `page.goto('http://localhost:3000')` (URL absoluta local) como el "único cambio", no `page.goto('/')` apoyado en el `baseURL` global del config | Mantiene el diff mental simple ("un solo cambio: la URL") sin depender de que el lector conozca la config, y evita adelantar la corrección C-01 (que combina `baseURL` + `goto` relativo) en un archivo que NO es la versión corregida — solo debe aislar el problema de dominio | `page.goto('/')`: habría mezclado la corrección de C-01 con el archivo "adaptado" | 6 |
+| D-18 | `k6` se instaló con `brew install k6` (v2.2.0), no con Docker | Docker no está disponible en esta máquina; Homebrew sí. `test:perf:docker` queda intacto en `package.json` como alternativa para quien no tenga k6 nativo (y es lo que usa CI en la Etapa 9) | Instalar Docker Desktop solo para esta etapa: más pesado que `brew install k6` para desarrollo local | 7 |
+| D-19 | Se agregó `summaryTrendStats: ['avg','min','med','max','p(90)','p(95)','p(99)']` al bloque `options` de `perf/seguimiento-sla.js`, además de lo que el SDD da verbatim (`scenarios` + `thresholds`) | `perf/reporte.js` debe reportar avg/p95/**p99**; k6 no incluye p99 en el resumen JSON por defecto (solo hasta p95) a menos que se pida explícitamente. Es una adición, no una modificación de lo ya dado | Omitir p99 de la tabla: habría incumplido el propio requisito de `perf/reporte.js` ("avg, p95, p99...") | 7 |
+| D-20 | `perf/reporte.js` decide el exit code final según el summary con el **mtime más reciente**, no siempre según "normal" | Bug encontrado al probar: con la lógica inicial (solo mirar "normal"), `npm run test:perf:degradado` salía con código 0 aunque el modo degradado fallara el umbral, porque `-e MODO=degradado` es una bandera interna de k6 que nunca llega como variable de entorno real a `node perf/reporte.js`. Esto contradecía la nota de la Etapa 9 ("test:perf:degradado está diseñado para fallar" y por eso se excluye de CI). Usar el mtime más reciente hace que cada comando (`test:perf` y `test:perf:degradado`) refleje el resultado de SU PROPIA corrida | Revisar solo "normal": dejaba `test:perf:degradado` con exit 0 pese a fallar el SLA, contradiciendo el propio SDD | 7 |
 
 ## 5. Siguientes pasos  _(se sobrescribe)_
 
-1. **Inmediato:** implementar la Etapa 7 — Sección D: `perf/seguimiento-sla.js` (k6, `constant-arrival-rate` 10 rps × 30 s) y `perf/reporte.js` (tabla comparativa normal vs degradado).
-2. Después: Etapa 8 — documentación de las secciones A, C, D, estrategia de pruebas y guion de videos (incluye escribir `docs/seccion-c-debug.md`, que referenciará las capturas ya generadas en `docs/evidencia/`).
-3. Después: Etapa 9 — README + CI en GitHub Actions.
+1. **Inmediato:** implementar la Etapa 8 — Documentación: `docs/seccion-a-casos-prueba.md` (copiar tal cual desde `_entrada/`), `docs/seccion-c-debug.md` (referenciando las capturas de `docs/evidencia/`), `docs/seccion-d-estrategia.md`, `docs/estrategia-pruebas.md` (diagrama Mermaid) y `docs/guion-videos.md`.
+2. Después: Etapa 9 — README + CI en GitHub Actions.
+3. Después: Etapa 10 — verificación final en entorno limpio.
 
 ## 6. Deuda y riesgos conocidos  _(append-only)_
 
@@ -79,3 +83,4 @@ npm run verify:sandbox
 | ID | Etapa | Síntoma | Causa raíz | Solución | ¿Sirve para el video? |
 |---|---|---|---|---|---|
 | F-01 | 6 | Se esperaba que `npm run test:evidencia-flaky` (5 repeticiones) mostrara intermitencia por la carrera del login (C-03), pero las 10 corridas (5 × 2 archivos) fallaron consistentemente 10/10, sin nada de flaky | Playwright aborta el test en el primer `expect`/acción que falla. C-02 (locator de texto exacto que nunca resuelve) siempre falla ANTES de llegar al punto donde C-03 competiría con la navegación: un defecto determinista enmascara al intermitente | No es un bug de la implementación: es el comportamiento real de un test con defectos encadenados, tal como el propio SDD lo anticipa ("corriges uno y aparece el siguiente"). Se documenta la cadena completa en `docs/seccion-c-debug.md` (Etapa 8) en vez de forzar un resultado distinto | Sí — ejemplo perfecto de "debugging real" para el video de Frontend: se ve, se explica y se referencia la captura |
+| F-02 | 7 | `npm run test:perf:degradado` salía con código 0 (éxito) aunque el modo degradado incumplía el umbral de SLA por casi 400 ms de margen (avg 1828ms vs 1500ms) | `perf/reporte.js` (primera versión) solo decidía el exit code mirando la fila "normal", copiando muy literal la frase del SDD "sale con código 1 si el modo normal no cumple el umbral" sin notar que eso deja sin cubrir el caso degradado, que el propio SDD marca como "diseñado para fallar" en las notas de CI de la Etapa 9 | Se cambió el criterio a "el summary con el mtime más reciente decide el exit code" (D-20): sin variables de entorno adicionales, sin tocar los scripts de `package.json` ya fijados en la Etapa 0, y coherente con ambos comandos | Sí — buen ejemplo de leer una nota del enunciado en su contexto completo (la de CI) en vez de aislada, para el video de Frontend o en la explicación de la Sección D |
