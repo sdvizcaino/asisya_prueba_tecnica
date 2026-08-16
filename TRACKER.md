@@ -7,12 +7,12 @@
 
 | Campo | Valor |
 |---|---|
-| Última etapa completada | Etapa 5 — Sección B2: API con Postman/Newman |
-| Etapa en curso | Etapa 6 — Sección C: debug del test defectuoso |
+| Última etapa completada | Etapa 6 — Sección C: debug del test defectuoso |
+| Etapa en curso | Etapa 7 — Sección D: carga con k6 |
 | Fecha de actualización | 2026-08-15 |
 | Último push a `main` | sí |
-| ¿Qué corre hoy? | `npm run test:e2e` (40/40) y `npm run test:api` → 15 requests, 0 fallos, 20/20 assertions verdes (autenticación con 3 pruebas OWASP, solicitud de asistencia con las 8 validaciones del contrato, seguimiento); reporte en `tests/api/reports/newman-report.html` |
-| ¿Qué NO corre todavía? | No existen specs de la Sección C, script de k6 (Sección D) ni documentación |
+| ¿Qué corre hoy? | `npm run test:e2e` → 42/42 verdes (40 de B1 + el test corregido de Sección C en ambos projects); `npm run test:evidencia-falla` falla a propósito (2/2, evidencia); `npm run test:evidencia-flaky` reporta 10/10 fallos (5 repeticiones × 2 archivos); `npm run test:api` sigue en 15/15 |
+| ¿Qué NO corre todavía? | No existe script de k6 (Sección D) ni documentación (`docs/seccion-a`, `seccion-c-debug.md`, `seccion-d-estrategia.md`, etc.) |
 
 ## 2. Cómo retomar el contexto  _(se sobrescribe)_
 
@@ -36,7 +36,8 @@ npm run verify:sandbox
 | 2 — Sandbox frontend + smoke | 2026-08-15 | e1a0fc3 | `npm run verify:sandbox` código 0, imprime RECIBIDA → ASIGNADA → EN_CAMINO → FINALIZADA | OK |
 | 3 — Config Playwright, fixtures, POM | 2026-08-15 | 0959f1e | `npx playwright test --list` (0 specs reales aún; ver D-10) + verificación temporal de los 3 projects y las 4 fixtures contra el sandbox real, borrada tras confirmar | OK (con salvedad documentada en D-10) |
 | 4 — Sección B1: specs de frontend | 2026-08-15 | 0191b1f | `npm run test:e2e` → 40/40 verdes (20 specs × 2 projects), videos en `test-results/`, reporte en `playwright-report/`. Reconfirmado además el criterio de la Etapa 3 con specs reales: `--list` muestra los 40 tests correctamente separados en `chromium-desktop`/`mobile-chrome`, ninguno en `seccion-c-falla` | OK |
-| 5 — Sección B2: Postman/Newman | 2026-08-15 | pendiente | `npm run test:api` → 15/15 requests, 0 fallos, 20/20 assertions; `tests/api/reports/newman-report.html` generado | OK |
+| 5 — Sección B2: Postman/Newman | 2026-08-15 | d8d10a9 | `npm run test:api` → 15/15 requests, 0 fallos, 20/20 assertions; `tests/api/reports/newman-report.html` generado | OK |
+| 6 — Sección C: debug del test defectuoso | 2026-08-15 | pendiente | `npm run test:evidencia-falla` falla (2/2, evidencia); `npm run test:evidencia-flaky` reporta 10/10 fallos en 5 repeticiones; `npm run test:e2e` → 42/42 verdes incluido el corregido. Capturas en `docs/evidencia/` | OK |
 
 ## 4. Decisiones técnicas  _(append-only)_
 
@@ -57,12 +58,14 @@ npm run verify:sandbox
 | D-13 | La verificación de la Sección D en `04-seguridad-xss.spec.ts` cuenta `document.querySelectorAll('script')` antes/después del envío, en vez del literal `script[data-inyectado]` que menciona el SDD | Ningún payload de `usuarios.json` fija el atributo `data-inyectado`; comprobar ese selector siempre daría vacío sin probar nada. Contar los `<script>` totales sí detecta una inyección real | Implementar el selector literal: habría sido una aserción que pasa siempre, sin valor de detección | 4 |
 | D-14 | Los pre-request scripts de los items 4 y 12 de Postman usan `pm.sendRequest(request, callback)` con recursión, no `await` | El sandbox de Newman (postman-sandbox) no soporta `await` de nivel superior en pre-request scripts (`SyntaxError: await is only valid...`); el estilo callback es el que el runtime efectivamente espera antes de continuar con la request configurada | `await pm.sendRequest(...)`: fallaba con SyntaxError en el sandbox de Newman a pesar de ser sintaxis JS válida en Node | 5 |
 | D-15 | Dentro de esos mismos pre-request scripts se usa `pm.variables.get('baseUrl')`, no `pm.collectionVariables.get('baseUrl')` | `baseUrl` vive en el archivo de **environment**, no como variable de colección; `pm.collectionVariables` solo resuelve ese scope y devolvía `undefined`, produciendo `getaddrinfo ENOTFOUND undefined`. `pm.variables.get` resuelve en cascada por todos los scopes | `pm.collectionVariables.get('baseUrl')`: fallaba en tiempo de ejecución porque el valor real está en el environment | 5 |
+| D-16 | Las capturas de `docs/evidencia/` (falla y corregido) se generan en la Etapa 6, aunque `docs/seccion-c-debug.md` que las va a referenciar se escribe recién en la Etapa 8 | El árbol de la sección 2 ata esas dos imágenes a sus propios test runs, que ocurren aquí; el documento narrativo completo de hallazgos es un entregable explícito de la Etapa 8. Escribir el `.md` a medias ahora habría adelantado trabajo fuera de esta etapa | Escribir ya `seccion-c-debug.md` completo: habría roto "una etapa a la vez" | 6 |
+| D-17 | `test-asistencia-falla-adaptado.spec.ts` usa `page.goto('http://localhost:3000')` (URL absoluta local) como el "único cambio", no `page.goto('/')` apoyado en el `baseURL` global del config | Mantiene el diff mental simple ("un solo cambio: la URL") sin depender de que el lector conozca la config, y evita adelantar la corrección C-01 (que combina `baseURL` + `goto` relativo) en un archivo que NO es la versión corregida — solo debe aislar el problema de dominio | `page.goto('/')`: habría mezclado la corrección de C-01 con el archivo "adaptado" | 6 |
 
 ## 5. Siguientes pasos  _(se sobrescribe)_
 
-1. **Inmediato:** implementar la Etapa 6 — Sección C: `test-asistencia-falla.spec.ts` (copia textual del fragmento defectuoso), `test-asistencia-falla-adaptado.spec.ts` (misma URL apuntando al sandbox) y `test-asistencia-corregido.spec.ts` (versión en verde con comentarios `[C-0x]`).
-2. Después: Etapa 7 — Sección D (carga con k6, normal vs degradado).
-3. Después: Etapa 8 — documentación de las secciones A, C, D y guion de videos.
+1. **Inmediato:** implementar la Etapa 7 — Sección D: `perf/seguimiento-sla.js` (k6, `constant-arrival-rate` 10 rps × 30 s) y `perf/reporte.js` (tabla comparativa normal vs degradado).
+2. Después: Etapa 8 — documentación de las secciones A, C, D, estrategia de pruebas y guion de videos (incluye escribir `docs/seccion-c-debug.md`, que referenciará las capturas ya generadas en `docs/evidencia/`).
+3. Después: Etapa 9 — README + CI en GitHub Actions.
 
 ## 6. Deuda y riesgos conocidos  _(append-only)_
 
@@ -75,4 +78,4 @@ npm run verify:sandbox
 
 | ID | Etapa | Síntoma | Causa raíz | Solución | ¿Sirve para el video? |
 |---|---|---|---|---|---|
-| F-01 | — | — | — | — | — |
+| F-01 | 6 | Se esperaba que `npm run test:evidencia-flaky` (5 repeticiones) mostrara intermitencia por la carrera del login (C-03), pero las 10 corridas (5 × 2 archivos) fallaron consistentemente 10/10, sin nada de flaky | Playwright aborta el test en el primer `expect`/acción que falla. C-02 (locator de texto exacto que nunca resuelve) siempre falla ANTES de llegar al punto donde C-03 competiría con la navegación: un defecto determinista enmascara al intermitente | No es un bug de la implementación: es el comportamiento real de un test con defectos encadenados, tal como el propio SDD lo anticipa ("corriges uno y aparece el siguiente"). Se documenta la cadena completa en `docs/seccion-c-debug.md` (Etapa 8) en vez de forzar un resultado distinto | Sí — ejemplo perfecto de "debugging real" para el video de Frontend: se ve, se explica y se referencia la captura |
