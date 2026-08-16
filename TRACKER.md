@@ -7,12 +7,13 @@
 
 | Campo | Valor |
 |---|---|
-| Última etapa completada | Etapa 9 — README + CI |
-| Etapa en curso | Etapa 10 — Verificación final |
+| Última etapa completada | Etapa 9 — README + CI (**cerrada por completo**, incluido el commit de confirmación) |
+| Etapa en curso | Etapa 10 — Verificación final (**no iniciada**: cero comandos corridos, cero archivos tocados) |
 | Fecha de actualización | 2026-08-16 |
-| Último push a `main` | sí |
-| ¿Qué corre hoy? | `README.md` completo en el orden exigido. **CI en GitHub Actions confirmado en verde**: run #1 (commit `51d185d`), estado `Success`, duración 2m 38s, 3 artifacts descargables (`playwright-report` 2.35 MB, `newman-report` 20 KB, `perf-reports` 3.04 KB) — verificado en https://github.com/sdvizcaino/asisya_prueba_tecnica/actions/runs/31951205123. Todo lo de las Etapas 1-8 sigue verde |
-| ¿Qué NO corre todavía? | Nada pendiente de las Etapas 0-9. Falta la Etapa 10 (verificación final en clon limpio) |
+| Último push a `main` | sí — `1716a34` es el HEAD remoto confirmado (`git ls-remote origin main`) |
+| ¿Qué corre hoy? | Las Etapas 0-9 completas y verificadas: sandbox (API + frontend), `verify:sandbox` (0), Playwright config + fixtures + POM, 42 specs E2E en verde (`test:e2e`), 15 requests de Postman en verde (`test:api`), Sección C con test original/adaptado/corregido, k6 normal (PASA) y degradado (FALLA, evidencia), los 5 docs de `docs/`, `README.md`, y **CI en GitHub Actions confirmado `Success`** (run #1, commit `51d185d`, 2m 38s, 3 artifacts descargables) en https://github.com/sdvizcaino/asisya_prueba_tecnica/actions/runs/31951205123 |
+| ¿Qué NO corre todavía? | Nada pendiente de las Etapas 0-9. La Etapa 10 (verificación final en clon limpio + checklist de cierre) no se ha empezado — ver punto 1 de "Siguientes pasos" |
+| Trabajo a medias sin commitear | **Ninguno.** `git status` → "nothing to commit, working tree clean" (verificado en esta misma actualización) |
 
 ## 2. Cómo retomar el contexto  _(se sobrescribe)_
 
@@ -40,7 +41,7 @@ npm run verify:sandbox
 | 6 — Sección C: debug del test defectuoso | 2026-08-15 | 08c717e | `npm run test:evidencia-falla` falla (2/2, evidencia); `npm run test:evidencia-flaky` reporta 10/10 fallos en 5 repeticiones; `npm run test:e2e` → 42/42 verdes incluido el corregido. Capturas en `docs/evidencia/` | OK |
 | 7 — Sección D: carga con k6 | 2026-08-15 | e3e650d | `npm run test:perf` exit 0 (normal PASA, avg 45ms); `npm run test:perf:degradado` exit 1 (degradado FALLA, avg 1828ms); `perf/reports/reporte-sla.md` con las dos filas | OK |
 | 8 — Documentación | 2026-08-15 | d77a3f7 | Los 5 documentos existen; Sección A verificada idéntica con `diff` contra `_entrada/`; Mermaid de `estrategia-pruebas.md` validado con `@mermaid-js/mermaid-cli` (renderiza sin errores); todas las rutas de trazabilidad citadas existen en el repo | OK |
-| 9 — README + CI | 2026-08-16 | pendiente | `README.md` en el orden exigido por el SDD; workflow de CI confirmado en verde en GitHub (run #1, `Success`, 2m 38s) con 3 artifacts descargables | OK |
+| 9 — README + CI | 2026-08-16 | 1716a34 (trabajo principal en `51d185d`; `1716a34` confirma el resultado del CI) | `README.md` en el orden exigido por el SDD; workflow de CI confirmado en verde en GitHub (run #1, `Success`, 2m 38s) con 3 artifacts descargables | OK |
 
 ## 4. Decisiones técnicas  _(append-only)_
 
@@ -69,10 +70,11 @@ npm run verify:sandbox
 | D-21 | `docs/seccion-d-estrategia.md` interpreta "las 3 pruebas OWASP" como los requests 2, 3 y 4 de la colección Postman (login inválido/enumeración, inyección SQL, bloqueo por fuerza bruta) | Son exactamente las 3 descritas como "reglas de seguridad obligatorias" en la sección 3.3 del contrato. El test de XSS del frontend (`04-seguridad-xss.spec.ts`) se documenta como complemento aparte, no como una de "las 3" | Contar XSS como la tercera y dejar fuera el bloqueo por fuerza bruta: habría ignorado que el propio contrato ata esas 3 reglas específicas a la Sección D | 8 |
 | D-22 | `docs/estrategia-pruebas.md` dibuja la pirámide con 2 niveles (API/Contrato como base, Frontend E2E como punta), no los 3 clásicos (unitarias/integración/E2E) | El sandbox no tiene lógica de negocio que justifique una capa de unitarias separada (es un servidor delgado sobre un `Map` en memoria); la API cumple el rol de base rápida y barata. Carga y Seguridad se dibujan como capas transversales aparte porque certifican un atributo no funcional con pocas corridas, no escalan con volumen de casos como para ser "un nivel más" de la pirámide | Forzar 3 niveles inventando una capa de "unitarias" inexistente: habría sido decoración, no una descripción honesta de este proyecto | 8 |
 | D-23 | El primer push de la Etapa 9 requirió regenerar el token de GitHub con el scope `workflow` (no solo `repo`) | GitHub rechaza cualquier push que cree o modifique archivos bajo `.github/workflows/` si el PAT no tiene ese scope explícito, sin importar que `repo` ya esté marcado — es una protección específica para evitar que un token robado con permisos de repo modifique pipelines de CI | Reintentar con el mismo token: fallaba siempre con el mismo rechazo, sin importar cuántas veces se reintentara | 9 |
+| D-24 | `package.json` tiene **15 scripts**, no 14 | La Etapa 0 del SDD dice en su checklist de verificación "package.json con los 14 scripts", pero el bloque JSON literal que el propio SDD define en la sección 4 (Etapa 0) tiene 15 entradas contadas una por una. `package.json` copia ese bloque verbatim, sin inventar ni omitir ninguna. Es una inconsistencia de redacción del SDD, no una desviación de la implementación — se le avisó al usuario en la auditoría posterior a la Etapa 5 | Recortar a 14 para "cuadrar" con la prosa: habría significado omitir un script real que el bloque literal exige | 0 |
 
 ## 5. Siguientes pasos  _(se sobrescribe)_
 
-1. **Inmediato:** Etapa 10 — verificación final: clonar el repositorio en una carpeta aparte y correr, en secuencia y con el puerto 3000 libre entre comandos: `npm install && npx playwright install --with-deps chromium`, `npm run verify:sandbox`, `npm run test:e2e`, `npm run test:evidencia-falla`, `npm run test:api`, `npm run test:perf`, `npm run test:perf:degradado`. Cerrar el checklist de la sección "Etapa 10" del SDD y el TRACKER con el commit final `docs(tracker): cierre de la bitácora`.
+1. **Inmediato — Etapa 10, no iniciada:** clonar este repositorio (`https://github.com/sdvizcaino/asisya_prueba_tecnica`) en una carpeta **aparte** de este working directory (el SDD exige "copia limpia"). Ahí, con el puerto 3000 libre entre cada comando, correr en secuencia: `npm install && npx playwright install --with-deps chromium`, luego `npm run verify:sandbox`, `npm run test:e2e`, `npm run test:evidencia-falla` (debe fallar), `npm run test:api`, `npm run test:perf`, `npm run test:perf:degradado` (debe fallar). Pegar la salida real de cada uno. Con eso, marcar el checklist de cierre de la sección "Etapa 10" del SDD y, **en este repositorio** (no en el clon), actualizar `TRACKER.md` con los resultados y cerrar con el commit `docs(tracker): cierre de la bitácora`.
 2. Después de la Etapa 10: fuera del repo — PPTX (10 slides), Excel de los casos de la Sección A, grabación de los 2 videos (guion en `docs/guion-videos.md`), carpeta pública de Google Drive con todo — sección 5 del SDD, no se construye en este repositorio.
 
 ## 6. Deuda y riesgos conocidos  _(append-only)_
@@ -81,6 +83,7 @@ npm run verify:sandbox
 |---|---|---|---|---|
 | R-01 | Riesgo | k6 requiere instalación aparte; en CI se usa Docker | Bajo — documentado en README | Abierto |
 | R-02 | Riesgo | Los scripts usan sintaxis POSIX de variables de entorno: no corren en `cmd` de Windows | Bajo — README exige Linux/macOS/WSL | Abierto |
+| R-03 | Riesgo (entorno local) | El caché global de `npm` en esta máquina (`~/.npm/_cacache`) tiene archivos propiedad de `root`, de una instalación previa con `sudo` ajena a este proyecto. Cualquier `npm install`/`npx` en este Mac puede fallar con `EACCES` (pasó en la Etapa 0 con `npm install` y en la Etapa 8 con `npx @mermaid-js/mermaid-cli`) | Bajo — no afecta el repositorio ni CI (que usa un runner limpio de GitHub); solo afecta a quien reproduzca localmente en ESTA máquina específica. Workaround usado ambas veces: apuntar a un caché alternativo (`npm install --cache <ruta>` / `npm_config_cache=<ruta> npx ...`) | Abierto — la corrección permanente es `sudo chown -R $(id -u):$(id -g) ~/.npm`, no aplicada porque es una acción irreversible fuera del alcance de este repo |
 
 ## 7. Bitácora de fallos encontrados  _(append-only)_
 
