@@ -7,12 +7,12 @@
 
 | Campo | Valor |
 |---|---|
-| Última etapa completada | Etapa 7 — Sección D: carga con k6 |
-| Etapa en curso | Etapa 8 — Documentación |
+| Última etapa completada | Etapa 8 — Documentación |
+| Etapa en curso | Etapa 9 — README + CI |
 | Fecha de actualización | 2026-08-15 |
 | Último push a `main` | sí |
-| ¿Qué corre hoy? | k6 v2.2.0 instalado (`brew install k6`); `npm run test:perf` → exit 0, `avg=45ms` (PASA); `npm run test:perf:degradado` → exit 1, `avg=1828ms` (FALLA, evidencia esperada); `perf/reports/reporte-sla.md` con la tabla comparativa; todo lo de las Etapas 1-6 sigue verde |
-| ¿Qué NO corre todavía? | No existe documentación (`docs/seccion-a-casos-prueba.md`, `seccion-c-debug.md`, `seccion-d-estrategia.md`, `estrategia-pruebas.md`, `guion-videos.md`), README ni CI |
+| ¿Qué corre hoy? | Los 5 documentos de `docs/` existen: `seccion-a-casos-prueba.md` (copia verbatim, verificada byte a byte con `diff`), `seccion-c-debug.md`, `seccion-d-estrategia.md`, `estrategia-pruebas.md` (Mermaid validado con `mermaid-cli`, renderiza sin errores), `guion-videos.md`. Todas las rutas de trazabilidad citadas existen. Todo lo de las Etapas 1-7 sigue verde |
+| ¿Qué NO corre todavía? | No existe `README.md` ni `.github/workflows/ci.yml` (Etapa 9) |
 
 ## 2. Cómo retomar el contexto  _(se sobrescribe)_
 
@@ -38,7 +38,8 @@ npm run verify:sandbox
 | 4 — Sección B1: specs de frontend | 2026-08-15 | 0191b1f | `npm run test:e2e` → 40/40 verdes (20 specs × 2 projects), videos en `test-results/`, reporte en `playwright-report/`. Reconfirmado además el criterio de la Etapa 3 con specs reales: `--list` muestra los 40 tests correctamente separados en `chromium-desktop`/`mobile-chrome`, ninguno en `seccion-c-falla` | OK |
 | 5 — Sección B2: Postman/Newman | 2026-08-15 | d8d10a9 | `npm run test:api` → 15/15 requests, 0 fallos, 20/20 assertions; `tests/api/reports/newman-report.html` generado | OK |
 | 6 — Sección C: debug del test defectuoso | 2026-08-15 | 08c717e | `npm run test:evidencia-falla` falla (2/2, evidencia); `npm run test:evidencia-flaky` reporta 10/10 fallos en 5 repeticiones; `npm run test:e2e` → 42/42 verdes incluido el corregido. Capturas en `docs/evidencia/` | OK |
-| 7 — Sección D: carga con k6 | 2026-08-15 | pendiente | `npm run test:perf` exit 0 (normal PASA, avg 45ms); `npm run test:perf:degradado` exit 1 (degradado FALLA, avg 1828ms); `perf/reports/reporte-sla.md` con las dos filas | OK |
+| 7 — Sección D: carga con k6 | 2026-08-15 | e3e650d | `npm run test:perf` exit 0 (normal PASA, avg 45ms); `npm run test:perf:degradado` exit 1 (degradado FALLA, avg 1828ms); `perf/reports/reporte-sla.md` con las dos filas | OK |
+| 8 — Documentación | 2026-08-15 | pendiente | Los 5 documentos existen; Sección A verificada idéntica con `diff` contra `_entrada/`; Mermaid de `estrategia-pruebas.md` validado con `@mermaid-js/mermaid-cli` (renderiza sin errores); todas las rutas de trazabilidad citadas existen en el repo | OK |
 
 ## 4. Decisiones técnicas  _(append-only)_
 
@@ -64,12 +65,14 @@ npm run verify:sandbox
 | D-18 | `k6` se instaló con `brew install k6` (v2.2.0), no con Docker | Docker no está disponible en esta máquina; Homebrew sí. `test:perf:docker` queda intacto en `package.json` como alternativa para quien no tenga k6 nativo (y es lo que usa CI en la Etapa 9) | Instalar Docker Desktop solo para esta etapa: más pesado que `brew install k6` para desarrollo local | 7 |
 | D-19 | Se agregó `summaryTrendStats: ['avg','min','med','max','p(90)','p(95)','p(99)']` al bloque `options` de `perf/seguimiento-sla.js`, además de lo que el SDD da verbatim (`scenarios` + `thresholds`) | `perf/reporte.js` debe reportar avg/p95/**p99**; k6 no incluye p99 en el resumen JSON por defecto (solo hasta p95) a menos que se pida explícitamente. Es una adición, no una modificación de lo ya dado | Omitir p99 de la tabla: habría incumplido el propio requisito de `perf/reporte.js` ("avg, p95, p99...") | 7 |
 | D-20 | `perf/reporte.js` decide el exit code final según el summary con el **mtime más reciente**, no siempre según "normal" | Bug encontrado al probar: con la lógica inicial (solo mirar "normal"), `npm run test:perf:degradado` salía con código 0 aunque el modo degradado fallara el umbral, porque `-e MODO=degradado` es una bandera interna de k6 que nunca llega como variable de entorno real a `node perf/reporte.js`. Esto contradecía la nota de la Etapa 9 ("test:perf:degradado está diseñado para fallar" y por eso se excluye de CI). Usar el mtime más reciente hace que cada comando (`test:perf` y `test:perf:degradado`) refleje el resultado de SU PROPIA corrida | Revisar solo "normal": dejaba `test:perf:degradado` con exit 0 pese a fallar el SLA, contradiciendo el propio SDD | 7 |
+| D-21 | `docs/seccion-d-estrategia.md` interpreta "las 3 pruebas OWASP" como los requests 2, 3 y 4 de la colección Postman (login inválido/enumeración, inyección SQL, bloqueo por fuerza bruta) | Son exactamente las 3 descritas como "reglas de seguridad obligatorias" en la sección 3.3 del contrato. El test de XSS del frontend (`04-seguridad-xss.spec.ts`) se documenta como complemento aparte, no como una de "las 3" | Contar XSS como la tercera y dejar fuera el bloqueo por fuerza bruta: habría ignorado que el propio contrato ata esas 3 reglas específicas a la Sección D | 8 |
+| D-22 | `docs/estrategia-pruebas.md` dibuja la pirámide con 2 niveles (API/Contrato como base, Frontend E2E como punta), no los 3 clásicos (unitarias/integración/E2E) | El sandbox no tiene lógica de negocio que justifique una capa de unitarias separada (es un servidor delgado sobre un `Map` en memoria); la API cumple el rol de base rápida y barata. Carga y Seguridad se dibujan como capas transversales aparte porque certifican un atributo no funcional con pocas corridas, no escalan con volumen de casos como para ser "un nivel más" de la pirámide | Forzar 3 niveles inventando una capa de "unitarias" inexistente: habría sido decoración, no una descripción honesta de este proyecto | 8 |
 
 ## 5. Siguientes pasos  _(se sobrescribe)_
 
-1. **Inmediato:** implementar la Etapa 8 — Documentación: `docs/seccion-a-casos-prueba.md` (copiar tal cual desde `_entrada/`), `docs/seccion-c-debug.md` (referenciando las capturas de `docs/evidencia/`), `docs/seccion-d-estrategia.md`, `docs/estrategia-pruebas.md` (diagrama Mermaid) y `docs/guion-videos.md`.
-2. Después: Etapa 9 — README + CI en GitHub Actions.
-3. Después: Etapa 10 — verificación final en entorno limpio.
+1. **Inmediato:** implementar la Etapa 9 — `README.md` (nota de transparencia del sandbox arriba del todo, requisitos, cómo correr cada suite, índice de entregables, tabla resumen de los 5 casos, decisiones técnicas, link a Drive) y `.github/workflows/ci.yml` (test:e2e + test:api + test:perf:docker, sin evidencia-falla ni perf:degradado).
+2. Después: Etapa 10 — verificación final en entorno limpio (clon aparte).
+3. Después de la Etapa 10: fuera del repo — PPTX, Excel de casos, videos, carpeta de Drive (sección 5 del SDD).
 
 ## 6. Deuda y riesgos conocidos  _(append-only)_
 
