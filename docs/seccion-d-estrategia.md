@@ -7,6 +7,35 @@ mantenimiento tolerable: un usuario varado en la vía a las 3 a.m. es tan client
 Esta sección propone cómo sostener calidad y disponibilidad de forma continua, más allá de lo que
 cubren las Secciones B y C (funcional y de regresión).
 
+## 0. Respuestas a las preguntas del enunciado
+
+**¿Qué pruebas implementarías para garantizar la disponibilidad de un sistema que recibe solicitudes de asistencia vial o médica las 24 horas?**
+
+| Prueba | Qué verifica | Cadencia |
+|---|---|---|
+| Health check sintético | Que el servicio responda, desde varias regiones | Cada minuto |
+| Smoke del flujo crítico | Login → crear solicitud → seguimiento | Post-deploy y cada 15 min |
+| Carga sostenida y pico | Estabilidad en operación continua y ante 5–10× el tráfico | Semanal y antes de temporadas altas |
+| Resiliencia | Degradación elegante si cae una dependencia o se reinicia una instancia | Programada, en staging |
+| No pérdida de solicitudes | Idempotencia y reintentos: ninguna solicitud se pierde ni se duplica | En cada pipeline |
+
+En un servicio de asistencia, estar disponible no alcanza: la solicitud no se puede perder ni duplicar.
+Por eso la última prueba pesa igual que la primera, y está automatizada en este repositorio
+(`request 12` de la colección de Postman). El detalle de cada capa está en la sección 1.
+
+**¿Qué herramientas usarías para medir disponibilidad y latencia bajo carga?**
+
+| Herramienta | Qué mide |
+|---|---|
+| **k6** | Latencia bajo carga (promedio, p95, p99) y throughput real |
+| **Grafana + Prometheus** | Dashboards y alertas por SLO sobre latencia y saturación |
+| **Better Stack** o **UptimeRobot** | Disponibilidad externa multi-región y porcentaje de uptime |
+| **GitHub Actions** | Ejecución programada del smoke sintético y de las pruebas de carga |
+
+En esta prueba técnica se implementó la medición con **k6** (resultado en la sección 4) y el health
+check que consume el pipeline. El resto es la propuesta de operación para un entorno productivo; la
+justificación de cada herramienta está en la sección 3.
+
 ## 1. Estrategia en 5 capas
 
 | Capa | Qué hace | Frecuencia |
@@ -22,12 +51,15 @@ cubren las Secciones B y C (funcional y de regresión).
 | Métrica | Objetivo |
 |---|---|
 | Disponibilidad | 99.9 % (≈ 43 min de indisponibilidad tolerada al mes) |
-| Latencia (p95) | < 1.5 s |
+| Latencia promedio | < 1.5 s — es el requisito explícito del enunciado |
+| Latencia p95 | < 2 s |
 | Tasa de error | < 0.5 % de las solicitudes |
 
-Estos SLOs son los que la Sección D usa como umbral en la prueba de carga (`avg < 1500 ms`,
-`p(95) < 2000 ms`, `http_req_failed < 1%` en `perf/seguimiento-sla.js`): son coherentes entre la
-prueba puntual de esta entrega y lo que se propone sostener en producción.
+El p95 se fija por encima del promedio a propósito: en cualquier distribución de latencia con cola
+derecha, el percentil 95 es mayor que la media, y exigirle el mismo número haría el objetivo
+inalcanzable sin aportar información. Estos tres umbrales son literalmente los que aplica la prueba de
+carga en `perf/seguimiento-sla.js` (`avg < 1500 ms`, `p(95) < 2000 ms`, `http_req_failed < 1%`): lo que
+se propone sostener en producción es lo mismo que se mide en esta entrega.
 
 ## 3. Herramientas y por qué
 
@@ -46,8 +78,12 @@ Medido en la Etapa 7 (`perf/seguimiento-sla.js`, k6 `constant-arrival-rate`, 10 
 
 | Modo | avg | p95 | p99 | rps real | tasa de error | Veredicto (avg < 1500 ms) |
 |---|---|---|---|---|---|---|
-| normal | 45 ms | 44 ms | 44 ms | 9.8 | 0.00% | PASA |
+| normal | 45 ms | 43 ms | 44 ms | 9.8 | 0.00% | PASA |
 | degradado | 1828 ms | 2186 ms | 2228 ms | 9.2 | 0.00% | FALLA |
+
+En modo normal, el promedio (45 ms) queda por encima del p95 (43 ms) porque un puñado de peticiones
+iniciales paga el arranque del proceso —el máximo real medido fue de 848 ms—, mientras que el 95 % de
+las peticiones se mantuvo en torno a los 43 ms.
 
 Tabla completa y regenerable en [`perf/reports/reporte-sla.md`](../perf/reports/reporte-sla.md);
 copia fija de esta corrida en [`docs/evidencia/sla-normal-vs-degradado.md`](evidencia/sla-normal-vs-degradado.md).
@@ -71,7 +107,7 @@ en orden de probabilidad de impacto:
    memoria (`mock/data/profesionales.json`); un backend real que haga una consulta separada por cada
    solicitud para traer los datos del profesional, en vez de un `JOIN` o una consulta batch, multiplica
    las idas y vueltas a la base de datos.
-3. **Ausencia de caché en un dato que cambia cada 30 s.** El estado avanza en pasos de
+3. **Ausencia de caché en un dato que cambia cada pocos segundos.** El estado avanza en pasos de
    `ESTADO_STEP_MS` (3 s en el sandbox, probablemente minutos en producción): con múltiples usuarios
    haciendo polling del mismo `solicitudId`, cachear la respuesta por un TTL corto (ej. 5 s) evitaría
    recalcular el estado en cada request sin sacrificar frescura perceptible.
@@ -89,6 +125,9 @@ en orden de probabilidad de impacto:
    (conexiones más lentas que en desktop).
 
 ## 6. Las 3 pruebas OWASP y su ubicación en el repo
+
+El enunciado pide una prueba de seguridad; se entregan tres automatizadas, todas ejecutables con
+`npm run test:api`, más una complementaria de XSS en la capa de frontend.
 
 | # | Prueba | Categoría OWASP | Ubicación |
 |---|---|---|---|

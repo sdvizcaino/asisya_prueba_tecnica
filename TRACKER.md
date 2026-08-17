@@ -43,6 +43,7 @@ npm run verify:sandbox
 | 8 — Documentación | 2026-08-15 | d77a3f7 | Los 5 documentos existen; Sección A verificada idéntica con `diff` contra `_entrada/`; Mermaid de `estrategia-pruebas.md` validado con `@mermaid-js/mermaid-cli` (renderiza sin errores); todas las rutas de trazabilidad citadas existen en el repo | OK |
 | 9 — README + CI | 2026-08-16 | 1716a34 (trabajo principal en `51d185d`; `1716a34` confirma el resultado del CI) | `README.md` en el orden exigido por el SDD; workflow de CI confirmado en verde en GitHub (run #1, `Success`, 2m 38s) con 3 artifacts descargables | OK |
 | 10 — Verificación final | 2026-08-16 | aa19926 | Los 7 comandos de la sección "Etapa 10" del SDD corridos en secuencia sobre una copia limpia, con salida real: `verify:sandbox` (0), `test:e2e` (42/42), `test:evidencia-falla` (falla 2/2, evidencia), `test:api` (0 fallos, 20/20 assertions), `test:perf` (pasa, avg 45.1ms), `test:perf:degradado` (falla, avg 1827.7ms, evidencia). Checklist de cierre de la Etapa 10 verificado ítem por ítem. Repositorio público confirmado y CI en verde confirmado para el HEAD actual | OK |
+| 11 — Corrección documental: `docs/seccion-d-estrategia.md` | 2026-08-16 | pendiente | 5 cambios puntuales pedidos por el usuario tras comparar el documento contra el PDF real del enunciado: (1) sección 0 nueva con las 2 preguntas del enunciado respondidas literalmente; (2) tabla de SLOs de la sección 2 separada en latencia promedio/p95 para dejar de afirmar una coherencia falsa con los umbrales reales de `perf/seguimiento-sla.js` (verificado en el código: `avg<1500`, `p(95)<2000`, `rate<0.01`); (3) título del cuello de botella 3 corregido ("cada 30 s" → "cada pocos segundos", coherente con `ESTADO_STEP_MS=3000` ya explicado en el cuerpo del mismo punto); (4) tabla de la sección 4 corregida contra el dato real de `perf/reports/summary-normal.json` (p95 es 43 ms, no 44 — ya lo decían bien `perf/reports/reporte-sla.md` y `docs/evidencia/sla-normal-vs-degradado.md`, solo este doc tenía el valor viejo) + frase nueva explicando avg>p95 con el máximo real medido (848 ms); (5) frase que señala que se entregaron 3 pruebas OWASP automatizadas cuando el enunciado pedía solo 1. Verificado tras el cambio: numeración de secciones 0-7 sin duplicados y las 4 referencias cruzadas (a secciones 1, 3 y 4) siguen apuntando al encabezado correcto | OK |
 
 ## 4. Decisiones técnicas  _(append-only)_
 
@@ -76,7 +77,7 @@ npm run verify:sandbox
 
 ## 5. Siguientes pasos  _(se sobrescribe)_
 
-1. **El repositorio está completo.** Las 11 etapas (0-10) están cerradas, verificadas y publicadas en `main`. No queda ningún comando pendiente de correr ni checklist de cierre pendiente dentro de este repo.
+1. **El repositorio está completo.** Las etapas 0-10 más la corrección documental de la etapa 11 están cerradas, verificadas y publicadas en `main`. No queda ningún comando pendiente de correr ni checklist de cierre pendiente dentro de este repo.
 2. Todo lo que sigue vive **fuera de este repositorio** (sección 5 del SDD, no se construye aquí): PPTX (10 slides), Excel de los casos de la Sección A, grabación de los 2 videos (guion ya escrito en `docs/guion-videos.md`), carpeta pública de Google Drive con todo lo anterior más el link al repo.
 
 ## 6. Deuda y riesgos conocidos  _(append-only)_
